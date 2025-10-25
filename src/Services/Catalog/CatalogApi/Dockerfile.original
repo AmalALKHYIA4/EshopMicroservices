@@ -1,0 +1,26 @@
+# Étape 1 : Image de base pour exécuter l'application
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
+
+# Étape 2 : Build du projet
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY ["Services/Catalog/CatalogApi/CatalogApi.csproj", "Services/Catalog/CatalogApi/"]
+RUN dotnet restore "./Services/Catalog/CatalogApi/CatalogApi.csproj"
+COPY . .
+WORKDIR "/src/Services/Catalog/CatalogApi"
+RUN dotnet build "./CatalogApi.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+# Étape 3 : Publication du projet
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "./CatalogApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+# Étape 4 : Image finale pour l'exécution
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "CatalogApi.dll"]
